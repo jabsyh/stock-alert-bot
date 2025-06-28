@@ -6,7 +6,6 @@ from playwright.async_api import async_playwright
 TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
-# Async stock check with Playwright async API
 async def is_in_stock():
     try:
         async with async_playwright() as p:
@@ -17,8 +16,8 @@ async def is_in_stock():
                 timeout=60000,
             )
 
-            # Wait for the "ADD TO CART" button (div with text), case-insensitive
-            await page.wait_for_selector("div:has-text(/add to cart/i)", timeout=10000)
+            # Use exact text match (case-sensitive)
+            await page.wait_for_selector("div:has-text('ADD TO CART')", timeout=10000)
 
             content = (await page.content()).lower()
             await browser.close()
