@@ -1,6 +1,7 @@
 import discord
 import asyncio
 import os
+import time
 from playwright.async_api import async_playwright
 import cv2
 import numpy as np
@@ -8,9 +9,10 @@ import numpy as np
 TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 URL = "https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure"
-template_path = "buy_now_template.png"  # Make sure this image is in your script's directory
+TEMPLATE_PATH = "buy_now_template.png"  # make sure this is the correct path
 
-async def is_in_stock(channel):
+
+async def is_in_stock():
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -21,48 +23,38 @@ async def is_in_stock(channel):
                 )
             )
 
-            # Retry page.goto up to 3 times
-            for attempt in range(3):
-                try:
-                    await page.goto(URL, timeout=60000, wait_until="domcontentloaded")
-                    break
-                except Exception as e:
-                    print(f"Navigation attempt {attempt + 1} failed: {e}")
-                    if attempt == 2:
-                        await browser.close()
-                        return False
-                    await asyncio.sleep(3)
+            await page.goto(
+                URL,
+                timeout=60000,
+                wait_until="networkidle"
+            )
 
-            # Take full page screenshot
             screenshot_path = "/tmp/page_full.png"
             await page.screenshot(path=screenshot_path, full_page=True)
 
-            # Load images for template matching
             img_rgb = cv2.imread(screenshot_path)
-            template = cv2.imread(template_path)
+            template = cv2.imread(TEMPLATE_PATH)
 
             if img_rgb is None:
                 print("❌ Failed to load the full page screenshot.")
                 await browser.close()
                 return False
             if template is None:
-                print(f"❌ Failed to load template image at {template_path}")
+                print(f"❌ Failed to load template image at {TEMPLATE_PATH}")
                 await browser.close()
                 return False
 
-            # Convert to grayscale for better matching
             img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
             template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 
             w, h = template_gray.shape[::-1]
 
-            # Perform template matching
             res = cv2.matchTemplate(img_gray, template_gray, cv2.TM_CCOEFF_NORMED)
-            threshold = 0.8  # Adjust threshold as needed
+            threshold = 0.8
             loc = np.where(res >= threshold)
 
             found = False
-            for pt in zip(*loc[::-1]):  # Switch x,y coordinates
+            for pt in zip(*loc[::-1]):
                 print(f"✅ Found 'Buy Now' button at location: {pt}")
                 found = True
                 break
@@ -84,23 +76,23 @@ client = discord.Client(intents=intents)
 async def on_ready():
     print(f"✅ Logged in as {client.user}")
     channel = client.get_channel(CHANNEL_ID)
-    already_notified = False
+    last_notify = 0
+    cooldown = 60  # seconds
 
     while True:
         try:
-            if await is_in_stock(channel):
-                if not already_notified:
+            in_stock = await is_in_stock()
+            now = time.time()
+            if in_stock:
+                if now - last_notify > cooldown:
                     await channel.send(
-                        "🎉 The SKULLPANDA plush is **in stock**! 🛒\n"
-                        f"{URL}"
+                        f"🎉 The SKULLPANDA plush is **in stock**! 🛒\n{URL}"
                     )
-                    already_notified = True
-            else:
-                already_notified = False
+                    last_notify = now
+            await asyncio.sleep(10)
         except Exception as e:
             print("Bot error:", e)
-
-        await asyncio.sleep(10)  # check every 10 seconds (adjust as desired)
+            await asyncio.sleep(10)
 
 
 client.run(TOKEN)
