@@ -7,50 +7,58 @@ TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
 async def dismiss_popups(page):
-    # ... your existing popup clicks ...
+    # General popups
+    popup_selectors = [
+        "button:has-text('Accept')",
+        "button:has-text('I agree')",
+        "button:has-text('Close')",
+        "div.cookie-banner button.close",
+        "div#qc-cmp2-ui button[aria-label='Close']",
+    ]
+
+    for selector in popup_selectors:
+        try:
+            btn = await page.query_selector(selector)
+            if btn:
+                print(f"🧹 Clicking popup: {selector}")
+                await btn.click()
+                await asyncio.sleep(1)
+        except Exception:
+            pass
+
+    # Region popup handling
 
     try:
-        print("🌍 Checking for region popup via JS (including shadow DOM)...")
+        print("🌍 Checking for region popup on main page...")
 
-        js_click_button = """
-        () => {
-            function findButtonWithText(node, text) {
-                if (!node) return null;
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    if (node.tagName === 'BUTTON' && node.textContent.trim() === text) {
-                        return node;
-                    }
-                    if (node.shadowRoot) {
-                        const foundInShadow = findButtonWithText(node.shadowRoot, text);
-                        if (foundInShadow) return foundInShadow;
-                    }
-                }
-                for (const child of node.children || []) {
-                    const found = findButtonWithText(child, text);
-                    if (found) return found;
-                }
-                return null;
-            }
-            const btn = findButtonWithText(document.body, 'United Kingdom');
-            if (btn) {
-                btn.click();
-                return true;
-            } else {
-                return false;
-            }
-        }
-        """
-
-        clicked = await page.evaluate(js_click_button)
-        if clicked:
-            print("✅ Clicked 'United Kingdom' button found via shadow DOM search")
+        # Try partial text match on main page
+        kingdom_btn = await page.query_selector("button:has-text('Kingdom')")
+        if kingdom_btn and await kingdom_btn.is_visible():
+            print("✅ Clicking 'Kingdom' button on main page...")
+            await kingdom_btn.click()
             await asyncio.sleep(2)
-        else:
-            print("❌ 'United Kingdom' button NOT found via shadow DOM search")
+            return
+
+        # Check all frames for 'Kingdom' button
+        print("🌍 Checking for region popup inside frames...")
+        for frame in page.frames:
+            print(f"🧩 Frame URL: {frame.url}")
+            btn = await frame.query_selector("button:has-text('Kingdom')")
+            if btn and await btn.is_visible():
+                print(f"✅ Found and clicking 'Kingdom' button in frame: {frame.url}")
+                await btn.click()
+                await asyncio.sleep(2)
+                return
+
+        # Fallback: Try to close generic popup close buttons
+        close_btn = await page.query_selector("button:has-text('Close'), button[aria-label='Close']")
+        if close_btn and await close_btn.is_visible():
+            print("🔔 Closing popup by pressing close button")
+            await close_btn.click()
+            await asyncio.sleep(2)
 
     except Exception as e:
-        print("❌ Region popup JS shadow DOM handling failed:", e)
-
+        print("❌ Region popup handling failed:", e)
 
 async def is_in_stock(channel):
     try:
@@ -73,7 +81,7 @@ async def is_in_stock(channel):
             except Exception as e:
                 print("Selector wait timeout:", e)
 
-            # Save and upload screenshot of the full page for debug
+            # Save and upload screenshot for debugging
             screenshot_path = "/tmp/page_debug.png"
             await page.screenshot(path=screenshot_path, full_page=True)
             await channel.send("📸 Here's the current page screenshot for debugging:", file=discord.File(screenshot_path))
@@ -88,7 +96,6 @@ async def is_in_stock(channel):
     except Exception as e:
         print("Playwright error:", e)
         return False
-
 
 intents = discord.Intents.default()
 intents.message_content = True
