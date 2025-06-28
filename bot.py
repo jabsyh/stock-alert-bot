@@ -7,67 +7,48 @@ TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
 async def dismiss_popups(page):
-    # General popups on main page
-    popup_selectors = [
-        "button:has-text('Accept')",
-        "button:has-text('I agree')",
-        "button:has-text('Close')",
-        "div.cookie-banner button.close",
-        "div#qc-cmp2-ui button[aria-label='Close']",
-    ]
+    # ... your existing popup clicks ...
 
-    for selector in popup_selectors:
-        try:
-            btn = await page.query_selector(selector)
-            if btn:
-                print(f"🧹 Clicking popup: {selector}")
-                await btn.click()
-                await asyncio.sleep(1)
-        except Exception:
-            pass
-
-    # Region popup might be inside iframe(s)
+    # Region popup handling via JS to search shadow DOM
     try:
-        print("🌍 Checking for region popup inside frames...")
+        print("🌍 Checking for region popup via JS (including shadow DOM)...")
 
-        async def search_frames(frames):
-            for frame in frames:
-                # Print frame url
-                print(f"🧩 Frame URL: {frame.url}")
+        # This JS snippet recursively searches shadow roots for button with exact text 'United Kingdom'
+        js_script = """
+        () => {
+            function findButtonWithText(node, text) {
+                if (!node) return null;
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    if (node.tagName === 'BUTTON' && node.textContent.trim() === text) {
+                        return node;
+                    }
+                    // Search shadow root if exists
+                    if (node.shadowRoot) {
+                        const foundInShadow = findButtonWithText(node.shadowRoot, text);
+                        if (foundInShadow) return foundInShadow;
+                    }
+                }
+                for (const child of node.children || []) {
+                    const found = findButtonWithText(child, text);
+                    if (found) return found;
+                }
+                return null;
+            }
+            return findButtonWithText(document.body, 'United Kingdom');
+        }
+        """
 
-                # Query all buttons, print their texts
-                buttons = await frame.query_selector_all("button")
-                for btn in buttons:
-                    text = (await btn.inner_text()).strip()
-                    print(f"   🔘 Button text: {text}")
-
-                # Try to find UK button by exact match or partial
-                uk_buttons = [btn for btn in buttons if 'United Kingdom' in (await btn.inner_text())]
-                for uk_button in uk_buttons:
-                    visible = await uk_button.is_visible()
-                    print(f"🔎 Found 'United Kingdom' button, visible? {visible}")
-                    if visible:
-                        print("✅ Clicking 'United Kingdom' button...")
-                        await uk_button.click()
-                        await asyncio.sleep(2)
-                        return True  # found and clicked
-
-                # Recursively check child frames (nested iframes)
-                if frame.child_frames:
-                    found = await search_frames(frame.child_frames)
-                    if found:
-                        return True
-
-            return False
-
-        found_and_clicked = await search_frames(page.frames)
-        if not found_and_clicked:
-            print("❌ No 'United Kingdom' button found in any frame.")
+        button_handle = await page.evaluate_handle(js_script)
+        if button_handle:
+            # Click the button via JS handle
+            await button_handle.click()
+            print("✅ Clicked 'United Kingdom' button found via shadow DOM search")
+            await asyncio.sleep(2)
+        else:
+            print("❌ 'United Kingdom' button NOT found via shadow DOM search")
 
     except Exception as e:
-        print("❌ Region popup handling failed:", e)
-
-
+        print("❌ Region popup JS shadow DOM handling failed:", e)
 
 
 async def is_in_stock(channel):
