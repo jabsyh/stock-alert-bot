@@ -7,7 +7,7 @@ TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
 async def dismiss_popups(page):
-    # Handle cookie/privacy modals
+    # General popups like cookies
     popup_selectors = [
         "button:has-text('Accept')",
         "button:has-text('I agree')",
@@ -26,16 +26,33 @@ async def dismiss_popups(page):
         except Exception:
             pass
 
-    # Handle the country popup specifically
+    # Specific fix: Region popup
     try:
         print("🌍 Checking for region popup...")
+
+        # Wait for the popup to render
+        await page.wait_for_selector("button:has-text('United Kingdom')", timeout=10000)
+
+        # Screenshot to debug popup appearance
+        await page.screenshot(path="region_popup_before.png")
+
         uk_button = await page.query_selector("button:has-text('United Kingdom')")
         if uk_button:
-            print("🌍 Selecting 'United Kingdom' in region popup.")
-            await uk_button.click()
-            await asyncio.sleep(2)  # Wait for redirect or UI update
+            visible = await uk_button.is_visible()
+            print(f"🌍 UK button found. Visible? {visible}")
+            if visible:
+                await uk_button.click()
+                print("✅ Clicked UK button")
+                await asyncio.sleep(3)
+                await page.screenshot(path="region_popup_after.png")
+            else:
+                print("⚠️ UK button is present but not visible.")
+        else:
+            print("❌ UK button not found")
+
     except Exception as e:
-        print("❌ Error while dismissing region popup:", e)
+        print("❌ Region popup handling failed:", e)
+
 
 async def is_in_stock(channel):
     try:
