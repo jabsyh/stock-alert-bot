@@ -8,6 +8,13 @@ import numpy as np
 TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
+# Define the path to your template image (update this to your actual path)
+template_path = "buy_now_template.png"
+
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)
+
 async def is_in_stock(channel):
     try:
         async with async_playwright() as p:
@@ -27,7 +34,7 @@ async def is_in_stock(channel):
             await page.screenshot(path=screenshot_path, full_page=True)
 
             img_rgb = cv2.imread(screenshot_path)
-            template = cv2.imread(template_path)  # <- updated here
+            template = cv2.imread(template_path)
 
             if img_rgb is None:
                 print("❌ Failed to load the full page screenshot.")
@@ -59,7 +66,6 @@ async def is_in_stock(channel):
     except Exception as e:
         print("Playwright error:", e)
         return False
-
 
 
 @client.event
