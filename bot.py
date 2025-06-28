@@ -7,7 +7,7 @@ TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
 async def dismiss_popups(page):
-    # General cookie/modals
+    # General popups
     popup_selectors = [
         "button:has-text('Accept')",
         "button:has-text('I agree')",
@@ -26,39 +26,40 @@ async def dismiss_popups(page):
         except Exception:
             pass
 
-    # Handle region popup with United Kingdom option
+    # Region popup handling
     try:
         print("🌍 Checking for region popup...")
 
-        # Wait up to 15s for *any* button with United Kingdom text
-        await page.wait_for_selector("text=United Kingdom", timeout=15000)
-
-        # Screenshot before interaction
+        # Screenshot before clicking
         await page.screenshot(path="region_popup_before.png")
 
-        # Click the correct button
-        uk_button = await page.query_selector("text=United Kingdom")
-        if uk_button:
-            visible = await uk_button.is_visible()
-            print(f"🌍 UK button found. Visible? {visible}")
-            if visible:
-                await uk_button.click()
-                print("✅ Clicked UK button")
-                await asyncio.sleep(3)
-                await page.screenshot(path="region_popup_after.png")
-            else:
-                print("⚠️ UK button found but not visible.")
+        # Wait for button with full text
+        await page.wait_for_selector("button:has-text('United Kingdom')", timeout=15000)
+        uk_button = await page.query_selector("button:has-text('United Kingdom')")
+        if uk_button and await uk_button.is_visible():
+            print("✅ Clicking 'United Kingdom' button...")
+            await uk_button.click()
+            await asyncio.sleep(1)
         else:
-            print("❌ UK button not found after waiting")
+            print("❌ UK button not found or not visible.")
+
+        # OPTIONAL: check if popup container still exists
+        popup_container = await page.query_selector("div.popup, div.modal, div.region-selector")
+        if popup_container:
+            visible = await popup_container.is_visible()
+            if visible:
+                print("❗ Popup container still visible after click — trying to close manually.")
+                close_btn = await page.query_selector("button:has-text('Close')")
+                if close_btn:
+                    await close_btn.click()
+                    await asyncio.sleep(1)
+
+        # Screenshot after clicking
+        await page.screenshot(path="region_popup_after.png")
 
     except Exception as e:
         print("❌ Region popup handling failed:", e)
 
-    # Optional: click fallback if we ever want to force both
-    # try:
-    #     await page.click("text=United Kingdom")
-    # except:
-    #     pass
 
 
 
