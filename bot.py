@@ -9,12 +9,10 @@ CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 async def dismiss_popups(page):
     # ... your existing popup clicks ...
 
-    # Region popup handling via JS to search shadow DOM
     try:
         print("🌍 Checking for region popup via JS (including shadow DOM)...")
 
-        # This JS snippet recursively searches shadow roots for button with exact text 'United Kingdom'
-        js_script = """
+        js_click_button = """
         () => {
             function findButtonWithText(node, text) {
                 if (!node) return null;
@@ -22,7 +20,6 @@ async def dismiss_popups(page):
                     if (node.tagName === 'BUTTON' && node.textContent.trim() === text) {
                         return node;
                     }
-                    // Search shadow root if exists
                     if (node.shadowRoot) {
                         const foundInShadow = findButtonWithText(node.shadowRoot, text);
                         if (foundInShadow) return foundInShadow;
@@ -34,14 +31,18 @@ async def dismiss_popups(page):
                 }
                 return null;
             }
-            return findButtonWithText(document.body, 'United Kingdom');
+            const btn = findButtonWithText(document.body, 'United Kingdom');
+            if (btn) {
+                btn.click();
+                return true;
+            } else {
+                return false;
+            }
         }
         """
 
-        button_handle = await page.evaluate_handle(js_script)
-        if button_handle:
-            # Click the button via JS handle
-            await button_handle.click()
+        clicked = await page.evaluate(js_click_button)
+        if clicked:
             print("✅ Clicked 'United Kingdom' button found via shadow DOM search")
             await asyncio.sleep(2)
         else:
