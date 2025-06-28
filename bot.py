@@ -12,10 +12,13 @@ async def is_in_stock():
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
-            await page.goto("https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure", timeout=60000)
+            await page.goto(
+                "https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure",
+                timeout=60000,
+            )
 
-            # Wait for button selector to confirm page loaded
-            await page.wait_for_selector("button", timeout=10000)
+            # Wait for the "ADD TO CART" button (div with text), case-insensitive
+            await page.wait_for_selector("div:has-text(/add to cart/i)", timeout=10000)
 
             content = (await page.content()).lower()
             await browser.close()
@@ -32,7 +35,7 @@ client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
-    print(f'✅ Logged in as {client.user}')
+    print(f"✅ Logged in as {client.user}")
     channel = client.get_channel(CHANNEL_ID)
     already_notified = False
 
@@ -40,7 +43,9 @@ async def on_ready():
         try:
             if await is_in_stock():
                 if not already_notified:
-                    await channel.send("🎉 The SKULLPANDA plush is **in stock**! 🛒\nhttps://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure")
+                    await channel.send(
+                        "🎉 The SKULLPANDA plush is **in stock**! 🛒\nhttps://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure"
+                    )
                     already_notified = True
             else:
                 already_notified = False
