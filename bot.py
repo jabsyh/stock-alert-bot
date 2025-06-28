@@ -7,7 +7,7 @@ TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
 async def dismiss_popups(page):
-    # Try to close cookie/privacy banners or modals if present
+    # Handle cookie/privacy modals
     popup_selectors = [
         "button:has-text('Accept')",
         "button:has-text('I agree')",
@@ -20,10 +20,22 @@ async def dismiss_popups(page):
         try:
             btn = await page.query_selector(selector)
             if btn:
+                print(f"🧹 Clicking popup: {selector}")
                 await btn.click()
                 await asyncio.sleep(1)
         except Exception:
             pass
+
+    # Handle the country popup specifically
+    try:
+        print("🌍 Checking for region popup...")
+        uk_button = await page.query_selector("button:has-text('United Kingdom')")
+        if uk_button:
+            print("🌍 Selecting 'United Kingdom' in region popup.")
+            await uk_button.click()
+            await asyncio.sleep(2)  # Wait for redirect or UI update
+    except Exception as e:
+        print("❌ Error while dismissing region popup:", e)
 
 async def is_in_stock(channel):
     try:
