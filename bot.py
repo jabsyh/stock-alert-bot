@@ -30,23 +30,43 @@ async def dismiss_popups(page):
     try:
         print("🌍 Checking for region popup inside frames...")
 
-        # Iterate all frames to find the UK button
-        for frame in page.frames:
-            buttons = await frame.query_selector_all("button:has-text('United Kingdom')")
-            if buttons:
-                for uk_button in buttons:
+        async def search_frames(frames):
+            for frame in frames:
+                # Print frame url
+                print(f"🧩 Frame URL: {frame.url}")
+
+                # Query all buttons, print their texts
+                buttons = await frame.query_selector_all("button")
+                for btn in buttons:
+                    text = (await btn.inner_text()).strip()
+                    print(f"   🔘 Button text: {text}")
+
+                # Try to find UK button by exact match or partial
+                uk_buttons = [btn for btn in buttons if 'United Kingdom' in (await btn.inner_text())]
+                for uk_button in uk_buttons:
                     visible = await uk_button.is_visible()
-                    print(f"🔎 Found 'United Kingdom' button in frame {frame.url}, visible? {visible}")
+                    print(f"🔎 Found 'United Kingdom' button, visible? {visible}")
                     if visible:
                         print("✅ Clicking 'United Kingdom' button...")
                         await uk_button.click()
                         await asyncio.sleep(2)
-                        return  # exit after clicking
+                        return True  # found and clicked
 
-        print("❌ No 'United Kingdom' button found in any frame.")
+                # Recursively check child frames (nested iframes)
+                if frame.child_frames:
+                    found = await search_frames(frame.child_frames)
+                    if found:
+                        return True
+
+            return False
+
+        found_and_clicked = await search_frames(page.frames)
+        if not found_and_clicked:
+            print("❌ No 'United Kingdom' button found in any frame.")
 
     except Exception as e:
         print("❌ Region popup handling failed:", e)
+
 
 
 
