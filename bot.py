@@ -7,7 +7,7 @@ TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
 async def dismiss_popups(page):
-    # General popups
+    # General popups on main page
     popup_selectors = [
         "button:has-text('Accept')",
         "button:has-text('I agree')",
@@ -26,45 +26,28 @@ async def dismiss_popups(page):
         except Exception:
             pass
 
-    # Region popup handling with detailed debug
+    # Region popup might be inside iframe(s)
     try:
-        print("🌍 Checking for region popup...")
+        print("🌍 Checking for region popup inside frames...")
 
-        # List all visible buttons for debugging exact text
-        buttons = await page.query_selector_all("button")
-        print(f"🔎 Found {len(buttons)} buttons:")
-        for i, b in enumerate(buttons):
-            try:
-                text = await b.inner_text()
-                if text.strip():
-                    print(f"🔘 [{i}] Button text: '{text.strip()}'")
-            except Exception:
-                pass
+        # Iterate all frames to find the UK button
+        for frame in page.frames:
+            buttons = await frame.query_selector_all("button:has-text('United Kingdom')")
+            if buttons:
+                for uk_button in buttons:
+                    visible = await uk_button.is_visible()
+                    print(f"🔎 Found 'United Kingdom' button in frame {frame.url}, visible? {visible}")
+                    if visible:
+                        print("✅ Clicking 'United Kingdom' button...")
+                        await uk_button.click()
+                        await asyncio.sleep(2)
+                        return  # exit after clicking
 
-        # Log frames info
-        frames = page.frames
-        print(f"🧩 Total frames: {len(frames)}")
-        for f in frames:
-            print(f"🧩 Frame name: '{f.name}', URL: {f.url}")
-
-        # Screenshot before clicking region popup
-        await page.screenshot(path="region_popup_before.png")
-
-        # Try waiting for the exact "United Kingdom" button text (case & spaces sensitive)
-        await page.wait_for_selector("button:has-text('United Kingdom')", timeout=15000)
-        uk_button = await page.query_selector("button:has-text('United Kingdom')")
-        if uk_button and await uk_button.is_visible():
-            print("✅ Clicking 'United Kingdom' button...")
-            await uk_button.click()
-            await asyncio.sleep(2)
-        else:
-            print("❌ 'United Kingdom' button not found or not visible.")
-
-        # Screenshot after clicking
-        await page.screenshot(path="region_popup_after.png")
+        print("❌ No 'United Kingdom' button found in any frame.")
 
     except Exception as e:
         print("❌ Region popup handling failed:", e)
+
 
 
 async def is_in_stock(channel):
