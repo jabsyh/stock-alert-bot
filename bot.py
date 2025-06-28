@@ -36,22 +36,18 @@ async def is_in_stock():
                 timeout=60000,
             )
 
-            # Dismiss popups/cookie banners
             await dismiss_popups(page)
 
-            # Check for "ADD TO CART" or "BUY NOW" buttons
-            try:
-                await page.wait_for_selector("text=ADD TO CART", timeout=10000)
-                in_stock = True
-            except Exception:
-                try:
-                    await page.wait_for_selector("text=BUY NOW", timeout=5000)
-                    in_stock = True
-                except Exception:
-                    in_stock = False
+            content = await page.inner_text("body")
+            print("PAGE CONTENT SNIPPET:", content[:500].lower())  # Print first 500 chars
+
+            # Check for "ADD TO CART" or "BUY NOW"
+            if "add to cart" in content.lower() or "buy now" in content.lower():
+                await browser.close()
+                return True
 
             await browser.close()
-            return in_stock
+            return False
 
     except Exception as e:
         print("Playwright error:", e)
