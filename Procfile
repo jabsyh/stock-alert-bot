@@ -1,1 +1,1 @@
-worker: stock_bot.py
+worker: python bot.py
