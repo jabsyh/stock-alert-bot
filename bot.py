@@ -35,8 +35,8 @@ async def is_in_stock(channel):
 
             await page.goto(
                 "https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure",
-                timeout=60000,
-                wait_until="networkidle"
+                timeout=10000,
+                wait_until="domcontentloaded"
             )
 
             await dismiss_popups(page)
