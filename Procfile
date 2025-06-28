@@ -1,0 +1,1 @@
+worker: stock_bot.py

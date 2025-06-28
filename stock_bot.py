@@ -1,0 +1,50 @@
+import requests
+import discord
+import asyncio
+
+# Replace with your bot token and channel ID
+TOKEN = 'MTM4ODMwMTk0MzYyNTA5MzI5MA.GIfsUS.cngGKXivZTy6nu_Hqmlhoo9mtdLhusEMngIxRI'
+CHANNEL_ID = 1297333693240709150  # e.g., 123456789012345678
+
+# Product URL and headers
+PRODUCT_URL = 'https://www.popmart.com/gb/products/1160/SKULLPANDA%20L%E2%80%99impressionnisme%20Series%20Plush%20Doll'
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0'
+}
+
+# Check function
+def is_in_stock():
+    response = requests.get(PRODUCT_URL, headers=HEADERS)
+    if response.status_code != 200:
+        print("Failed to fetch page")
+        return False
+
+    return "Add to Cart" in response.text or "add to cart" in response.text.lower()
+
+# Discord bot setup
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)
+
+@client.event
+async def on_ready():
+    print(f'Logged in as {client.user}')
+    channel = client.get_channel(CHANNEL_ID)
+
+    already_notified = False
+
+    while True:
+        try:
+            if is_in_stock():
+                if not already_notified:
+                    await channel.send("🎉 The SKULLPANDA plush is back in stock! Go go go!\n" + PRODUCT_URL)
+                    already_notified = True
+            else:
+                already_notified = False  # reset if it goes out of stock again
+        except Exception as e:
+            print("Error:", e)
+
+        await asyncio.sleep(10)  # check every 10 seconds
+        
+
+client.run(TOKEN)
