@@ -26,39 +26,34 @@ async def dismiss_popups(page):
         except Exception:
             pass
 
-    # Region popup handling
+    # Region popup handling with retry
+    for attempt in range(3):
+        try:
+            print(f"🌍 Checking for region popup attempt {attempt + 1}...")
 
-    try:
-        print("🌍 Checking for region popup on main page...")
-
-        # Try partial text match on main page
-        kingdom_btn = await page.query_selector("button:has-text('Kingdom')")
-        if kingdom_btn and await kingdom_btn.is_visible():
-            print("✅ Clicking 'Kingdom' button on main page...")
-            await kingdom_btn.click()
-            await asyncio.sleep(2)
-            return
-
-        # Check all frames for 'Kingdom' button
-        print("🌍 Checking for region popup inside frames...")
-        for frame in page.frames:
-            print(f"🧩 Frame URL: {frame.url}")
-            btn = await frame.query_selector("button:has-text('Kingdom')")
-            if btn and await btn.is_visible():
-                print(f"✅ Found and clicking 'Kingdom' button in frame: {frame.url}")
-                await btn.click()
+            kingdom_btn = await page.query_selector("button:has-text('Kingdom')")
+            if kingdom_btn and await kingdom_btn.is_visible():
+                print("✅ Clicking 'Kingdom' button")
+                await kingdom_btn.click()
                 await asyncio.sleep(2)
                 return
 
-        # Fallback: Try to close generic popup close buttons
-        close_btn = await page.query_selector("button:has-text('Close'), button[aria-label='Close']")
-        if close_btn and await close_btn.is_visible():
-            print("🔔 Closing popup by pressing close button")
-            await close_btn.click()
+            # Check frames as well
+            for frame in page.frames:
+                btn = await frame.query_selector("button:has-text('Kingdom')")
+                if btn and await btn.is_visible():
+                    print(f"✅ Clicking 'Kingdom' button in frame {frame.url}")
+                    await btn.click()
+                    await asyncio.sleep(2)
+                    return
+
+            # If no button found, try pressing Escape to close overlay
+            print("⏳ No 'Kingdom' button found, pressing Escape to close overlays")
+            await page.keyboard.press("Escape")
             await asyncio.sleep(2)
 
-    except Exception as e:
-        print("❌ Region popup handling failed:", e)
+        except Exception as e:
+            print("❌ Region popup handling attempt failed:", e)
 
 async def is_in_stock(channel):
     try:
@@ -70,18 +65,20 @@ async def is_in_stock(channel):
 
             await page.goto(
                 "https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure",
-                timeout=30000,
-                wait_until="domcontentloaded"
+                timeout=60000,
+                wait_until="networkidle"
             )
 
             await dismiss_popups(page)
 
             try:
-                await page.wait_for_selector("button:has-text('Add to Cart'), button:has-text('Buy Now')", timeout=15000)
+                await page.wait_for_selector(
+                    "button:has-text('Add to Cart'), button:has-text('Buy Now')",
+                    timeout=15000,
+                )
             except Exception as e:
                 print("Selector wait timeout:", e)
 
-            # Save and upload screenshot for debugging
             screenshot_path = "/tmp/page_debug.png"
             await page.screenshot(path=screenshot_path, full_page=True)
             await channel.send("📸 Here's the current page screenshot for debugging:", file=discord.File(screenshot_path))
@@ -96,6 +93,7 @@ async def is_in_stock(channel):
     except Exception as e:
         print("Playwright error:", e)
         return False
+
 
 intents = discord.Intents.default()
 intents.message_content = True
