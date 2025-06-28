@@ -26,41 +26,45 @@ async def dismiss_popups(page):
         except Exception:
             pass
 
-    # Region popup handling
+    # Region popup handling with detailed debug
     try:
         print("🌍 Checking for region popup...")
 
-        # Screenshot before clicking
+        # List all visible buttons for debugging exact text
+        buttons = await page.query_selector_all("button")
+        print(f"🔎 Found {len(buttons)} buttons:")
+        for i, b in enumerate(buttons):
+            try:
+                text = await b.inner_text()
+                if text.strip():
+                    print(f"🔘 [{i}] Button text: '{text.strip()}'")
+            except Exception:
+                pass
+
+        # Log frames info
+        frames = page.frames
+        print(f"🧩 Total frames: {len(frames)}")
+        for f in frames:
+            print(f"🧩 Frame name: '{f.name}', URL: {f.url}")
+
+        # Screenshot before clicking region popup
         await page.screenshot(path="region_popup_before.png")
 
-        # Wait for button with full text
+        # Try waiting for the exact "United Kingdom" button text (case & spaces sensitive)
         await page.wait_for_selector("button:has-text('United Kingdom')", timeout=15000)
         uk_button = await page.query_selector("button:has-text('United Kingdom')")
         if uk_button and await uk_button.is_visible():
             print("✅ Clicking 'United Kingdom' button...")
             await uk_button.click()
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
         else:
-            print("❌ UK button not found or not visible.")
-
-        # OPTIONAL: check if popup container still exists
-        popup_container = await page.query_selector("div.popup, div.modal, div.region-selector")
-        if popup_container:
-            visible = await popup_container.is_visible()
-            if visible:
-                print("❗ Popup container still visible after click — trying to close manually.")
-                close_btn = await page.query_selector("button:has-text('Close')")
-                if close_btn:
-                    await close_btn.click()
-                    await asyncio.sleep(1)
+            print("❌ 'United Kingdom' button not found or not visible.")
 
         # Screenshot after clicking
         await page.screenshot(path="region_popup_after.png")
 
     except Exception as e:
         print("❌ Region popup handling failed:", e)
-
-
 
 
 async def is_in_stock(channel):
@@ -73,58 +77,18 @@ async def is_in_stock(channel):
 
             await page.goto(
                 "https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure",
-                timeout=10000,
+                timeout=30000,
                 wait_until="domcontentloaded"
             )
 
             await dismiss_popups(page)
 
             try:
-                await page.wait_for_selector("button:has-text('Add to Cart'), h1", timeout=15000)
+                await page.wait_for_selector("button:has-text('Add to Cart'), button:has-text('Buy Now')", timeout=15000)
             except Exception as e:
                 print("Selector wait timeout:", e)
 
-            # Save and upload screenshot
+            # Save and upload screenshot of the full page for debug
             screenshot_path = "/tmp/page_debug.png"
             await page.screenshot(path=screenshot_path, full_page=True)
-            await channel.send("📸 Here's the current page screenshot:", file=discord.File(screenshot_path))
-
-            add_to_cart_button = await page.query_selector("button:has-text('Add to Cart')")
-            buy_now_button = await page.query_selector("button:has-text('Buy Now')")
-
-            await browser.close()
-
-            return add_to_cart_button is not None or buy_now_button is not None
-
-    except Exception as e:
-        print("Playwright error:", e)
-        return False
-
-
-
-intents = discord.Intents.default()
-intents.message_content = True
-client = discord.Client(intents=intents)
-
-@client.event
-async def on_ready():
-    print(f"✅ Logged in as {client.user}")
-    channel = client.get_channel(CHANNEL_ID)
-    already_notified = False
-
-    while True:
-        try:
-            if await is_in_stock(channel):
-                if not already_notified:
-                    await channel.send(
-                        "🎉 The SKULLPANDA plush is **in stock**! 🛒\nhttps://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure"
-                    )
-                    already_notified = True
-            else:
-                already_notified = False
-        except Exception as e:
-            print("Bot error:", e)
-
-        await asyncio.sleep(10)
-
-client.run(TOKEN)
+            await channel.send("📸 Here's the current page screenshot for debugging:", file=discord.File(screenshot_path))
