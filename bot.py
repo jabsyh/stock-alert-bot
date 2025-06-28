@@ -8,7 +8,7 @@ import numpy as np
 
 TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
-URL = "https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure"
+URL = "https://www.popmart.com/gb/products/1160/skullpanda-l-impressionnisme-series-plush-doll"
 TEMPLATE_PATH = "buy_now_template.png"  # make sure this is the correct path
 
 
