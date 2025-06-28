@@ -38,7 +38,7 @@ async def on_ready():
 
     while True:
         try:
-            if is_in_stock():
+            if True:  # temporarily force alert
                 if not already_notified:
                     await channel.send("🎉 The SKULLPANDA plush is back in stock! Go go go!\n" + PRODUCT_URL)
                     already_notified = True
