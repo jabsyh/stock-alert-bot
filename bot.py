@@ -23,36 +23,32 @@ async def is_in_stock(channel):
                 wait_until="networkidle"
             )
 
-            # Take full page screenshot
             screenshot_path = "/tmp/page_full.png"
             await page.screenshot(path=screenshot_path, full_page=True)
 
-            # Load images for template matching
             img_rgb = cv2.imread(screenshot_path)
-            template = cv2.imread("buy_now_template.png")
+            template = cv2.imread(template_path)  # <- updated here
 
             if img_rgb is None:
                 print("❌ Failed to load the full page screenshot.")
                 await browser.close()
                 return False
             if template is None:
-                print("❌ Failed to load 'buy_now_template.png'. Make sure it is in the same directory as this script.")
+                print(f"❌ Failed to load template image at {template_path}")
                 await browser.close()
                 return False
 
-            # Convert to grayscale for better matching
             img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
             template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 
             w, h = template_gray.shape[::-1]
 
-            # Perform template matching
             res = cv2.matchTemplate(img_gray, template_gray, cv2.TM_CCOEFF_NORMED)
-            threshold = 0.8  # Adjust if needed
+            threshold = 0.8
             loc = np.where(res >= threshold)
 
             found = False
-            for pt in zip(*loc[::-1]):  # Switch x,y coordinates
+            for pt in zip(*loc[::-1]):
                 print(f"✅ Found 'Buy Now' button at location: {pt}")
                 found = True
                 break
@@ -64,10 +60,6 @@ async def is_in_stock(channel):
         print("Playwright error:", e)
         return False
 
-
-intents = discord.Intents.default()
-intents.message_content = True
-client = discord.Client(intents=intents)
 
 
 @client.event
