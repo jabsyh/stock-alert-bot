@@ -3,8 +3,11 @@ import discord
 import asyncio
 
 # Replace with your bot token and channel ID
-TOKEN = 'MTM4ODMwMTk0MzYyNTA5MzI5MA.GIfsUS.cngGKXivZTy6nu_Hqmlhoo9mtdLhusEMngIxRI'
-CHANNEL_ID = 1297333693240709150  # e.g., 123456789012345678
+import os
+
+TOKEN = os.getenv("TOKEN")
+CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
+
 
 # Product URL and headers
 PRODUCT_URL = 'https://www.popmart.com/gb/products/1160/SKULLPANDA%20L%E2%80%99impressionnisme%20Series%20Plush%20Doll'
