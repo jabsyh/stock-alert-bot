@@ -26,34 +26,31 @@ async def dismiss_popups(page):
         except Exception:
             pass
 
-    # Region popup handling with retry
-    for attempt in range(3):
-        try:
-            print(f"🌍 Checking for region popup attempt {attempt + 1}...")
+    # Region popup handling: look for the div with exact class and text 'United Kingdom'
+    try:
+        print("🌍 Checking for region popup by div with class and text...")
 
-            kingdom_btn = await page.query_selector("button:has-text('Kingdom')")
-            if kingdom_btn and await kingdom_btn.is_visible():
-                print("✅ Clicking 'Kingdom' button")
-                await kingdom_btn.click()
-                await asyncio.sleep(2)
-                return
+        # Wait for the popup div to appear, timeout if not found after 15 seconds
+        await page.wait_for_selector("div.index_ipInConutry__BoVSZ", timeout=15000)
 
-            # Check frames as well
-            for frame in page.frames:
-                btn = await frame.query_selector("button:has-text('Kingdom')")
-                if btn and await btn.is_visible():
-                    print(f"✅ Clicking 'Kingdom' button in frame {frame.url}")
-                    await btn.click()
+        # Find all divs with the class (there may be more than one)
+        divs = await page.query_selector_all("div.index_ipInConutry__BoVSZ")
+        for div in divs:
+            text = await div.inner_text()
+            if "United Kingdom" in text:
+                visible = await div.is_visible()
+                print(f"🌍 Found div with text '{text}', visible? {visible}")
+                if visible:
+                    print("✅ Clicking the 'United Kingdom' div...")
+                    await div.click()
                     await asyncio.sleep(2)
-                    return
+                    break
+        else:
+            print("❌ 'United Kingdom' div not found or not visible")
 
-            # If no button found, try pressing Escape to close overlay
-            print("⏳ No 'Kingdom' button found, pressing Escape to close overlays")
-            await page.keyboard.press("Escape")
-            await asyncio.sleep(2)
+    except Exception as e:
+        print("❌ Region popup handling failed:", e)
 
-        except Exception as e:
-            print("❌ Region popup handling attempt failed:", e)
 
 async def is_in_stock(channel):
     try:
