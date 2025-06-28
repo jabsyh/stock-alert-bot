@@ -10,7 +10,7 @@ CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
 
 # Product URL and headers
-PRODUCT_URL = 'https://www.popmart.com/gb/products/1160/SKULLPANDA%20L%E2%80%99impressionnisme%20Series%20Plush%20Doll'
+PRODUCT_URL = 'PRODUCT_URL = 'https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure'
 HEADERS = {
     'User-Agent': 'Mozilla/5.0'
 }
