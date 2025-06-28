@@ -1,46 +1,31 @@
-import requests
 import discord
 import asyncio
-import time
 import os
+from playwright.sync_api import sync_playwright
 
-# Replace with your bot token and channel ID
+# Bot token and channel ID from environment
 TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
-# Headers for API request
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0'
-}
-
-# Check function with dynamic timestamp and API call
+# Headless browser stock check
 def is_in_stock():
     try:
-        current_timestamp = int(time.time())  # current Unix timestamp in seconds
-        api_url = f"https://prod-intl-api.popmart.com/shop/v1/shop/productDetails?spuId=1159&s=2da56cae115f2a55a850fe3e06a9c5b0&t={current_timestamp}"
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto("https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure", timeout=60000)
 
-        response = requests.get(api_url, headers=HEADERS)
-        if response.status_code != 200:
-            print("Failed to fetch API:", response.status_code)
-            return False
+            # Wait for the page to load relevant content
+            page.wait_for_selector("button", timeout=10000)
 
-        data = response.json()
-        if data.get("code") != "OK":
-            print("API error:", data.get("message"))
-            return False
+            # Check if "add to cart" or "buy now" is visible in the HTML
+            content = page.content().lower()
+            browser.close()
 
-        product = data.get("data", {})
-        is_available = product.get("isAvailable", False)
-        skus = product.get("skus", [])
-
-        if not is_available or not skus:
-            return False
-
-        stock = skus[0].get("stock", {}).get("onlineStock", 0)
-        return stock > 0
+            return "add to cart" in content or "buy now" in content
 
     except Exception as e:
-        print("Exception in is_in_stock:", e)
+        print("Playwright error:", e)
         return False
 
 # Discord bot setup
@@ -50,7 +35,7 @@ client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
-    print(f'Logged in as {client.user}')
+    print(f'✅ Logged in as {client.user}')
     channel = client.get_channel(CHANNEL_ID)
 
     already_notified = False
@@ -59,13 +44,13 @@ async def on_ready():
         try:
             if is_in_stock():
                 if not already_notified:
-                    await channel.send("🎉 The SKULLPANDA plush is back in stock! Go go go!\nhttps://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure")
+                    await channel.send("🎉 The SKULLPANDA plush is **in stock**! 🛒\nhttps://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure")
                     already_notified = True
             else:
-                already_notified = False  # reset if it goes out of stock again
+                already_notified = False  # Reset if out of stock again
         except Exception as e:
-            print("Error:", e)
+            print("Bot error:", e)
 
-        await asyncio.sleep(10)  # check every 10 seconds
+        await asyncio.sleep(10)  # Check every 10 seconds
 
 client.run(TOKEN)
