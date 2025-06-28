@@ -1,30 +1,41 @@
 import requests
 import discord
 import asyncio
-
-# Replace with your bot token and channel ID
 import os
 
 TOKEN = os.getenv("TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
-
-# Product URL and headers
-PRODUCT_URL = 'https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure'
+API_URL = "https://prod-intl-api.popmart.com/shop/v1/shop/productDetails?spuId=1159&s=2da56cae115f2a55a850fe3e06a9c5b0&t=1751122344"
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0'
+    "User-Agent": "Mozilla/5.0"
 }
 
-# Check function
 def is_in_stock():
-    response = requests.get(PRODUCT_URL, headers=HEADERS)
-    if response.status_code != 200:
-        print("Failed to fetch page")
+    try:
+        response = requests.get(API_URL, headers=HEADERS)
+        if response.status_code != 200:
+            print("Failed to fetch API:", response.status_code)
+            return False
+
+        data = response.json()
+        if data.get("code") != "OK":
+            print("API error:", data.get("message"))
+            return False
+
+        product = data.get("data", {})
+        is_available = product.get("isAvailable", False)
+        skus = product.get("skus", [])
+
+        if not is_available or not skus:
+            return False
+
+        stock = skus[0].get("stock", {}).get("onlineStock", 0)
+        return stock > 0
+    except Exception as e:
+        print("Exception in is_in_stock:", e)
         return False
 
-    return "Add to Cart" in response.text or "add to cart" in response.text.lower()
-
-# Discord bot setup
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
@@ -40,14 +51,13 @@ async def on_ready():
         try:
             if is_in_stock():
                 if not already_notified:
-                    await channel.send("🎉 The SKULLPANDA plush is back in stock! Go go go!\n" + PRODUCT_URL)
+                    await channel.send("🎉 The SKULLPANDA plush is back in stock! Go get it now!\n" + API_URL)
                     already_notified = True
             else:
-                already_notified = False  # reset if it goes out of stock again
+                already_notified = False  # reset if out of stock again
         except Exception as e:
-            print("Error:", e)
+            print("Error in loop:", e)
 
         await asyncio.sleep(10)  # check every 10 seconds
-        
 
 client.run(TOKEN)
