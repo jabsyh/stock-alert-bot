@@ -28,26 +28,28 @@ async def dismiss_popups(page):
 async def is_in_stock():
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
+            browser = await p.chromium.launch(headless=True, args=['--no-sandbox'])
+            page = await browser.new_page(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
 
             await page.goto(
                 "https://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure",
                 timeout=60000,
+                wait_until="networkidle"
             )
 
             await dismiss_popups(page)
 
-            # Wait for the product title or add to cart button to appear (adjust selector as needed)
+            # Wait up to 15 seconds for a product element or add to cart button
             try:
-                # Wait up to 15 seconds for "Add to Cart" button or product title
-                await page.wait_for_selector("button:has-text('Add to Cart'), h1.product-title", timeout=15000)
-            except Exception:
-                # Timeout — element not found, probably out of stock or page didn't load fully
-                await browser.close()
-                return False
+                await page.wait_for_selector("button:has-text('Add to Cart'), h1", timeout=15000)
+            except Exception as e:
+                print("⏳ Selector wait timeout:", e)
 
-            # Now check if the add to cart button is present
+            # Save screenshot for debugging (every time)
+            await page.screenshot(path="page_debug.png", full_page=True)
+            print("📸 Saved screenshot as page_debug.png")
+
+            # Look for Add to Cart or Buy Now buttons
             add_to_cart_button = await page.query_selector("button:has-text('Add to Cart')")
             buy_now_button = await page.query_selector("button:has-text('Buy Now')")
 
@@ -56,9 +58,10 @@ async def is_in_stock():
             return add_to_cart_button is not None or buy_now_button is not None
 
     except Exception as e:
-        print("Playwright error:", e)
+        print("❌ Playwright error:", e)
         try:
-            await page.screenshot(path="error_debug.png")
+            await page.screenshot(path="error_debug.png", full_page=True)
+            print("📸 Saved error screenshot as error_debug.png")
         except Exception:
             pass
         return False
