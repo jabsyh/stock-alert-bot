@@ -92,3 +92,42 @@ async def is_in_stock(channel):
             screenshot_path = "/tmp/page_debug.png"
             await page.screenshot(path=screenshot_path, full_page=True)
             await channel.send("📸 Here's the current page screenshot for debugging:", file=discord.File(screenshot_path))
+
+            add_to_cart_button = await page.query_selector("button:has-text('Add to Cart')")
+            buy_now_button = await page.query_selector("button:has-text('Buy Now')")
+
+            await browser.close()
+
+            return add_to_cart_button is not None or buy_now_button is not None
+
+    except Exception as e:
+        print("Playwright error:", e)
+        return False
+
+
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)
+
+@client.event
+async def on_ready():
+    print(f"✅ Logged in as {client.user}")
+    channel = client.get_channel(CHANNEL_ID)
+    already_notified = False
+
+    while True:
+        try:
+            if await is_in_stock(channel):
+                if not already_notified:
+                    await channel.send(
+                        "🎉 The SKULLPANDA plush is **in stock**! 🛒\nhttps://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure"
+                    )
+                    already_notified = True
+            else:
+                already_notified = False
+        except Exception as e:
+            print("Bot error:", e)
+
+        await asyncio.sleep(10)
+
+client.run(TOKEN)
