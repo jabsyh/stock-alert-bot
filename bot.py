@@ -76,7 +76,7 @@ async def on_ready():
 
     while True:
         try:
-            if await is_in_stock():
+            if await is_in_stock(channel):
                 if not already_notified:
                     await channel.send(
                         "🎉 The SKULLPANDA plush is **in stock**! 🛒\nhttps://www.popmart.com/gb/products/1159/SKULLPANDA-Aisling-Figure"
